@@ -51,6 +51,9 @@ from scipy import linalg
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 
+print(linalg.lapack.dgetrf([np.nan]))
+print(linalg.lapack.dgetrf([np.inf]))
+
 #%% SUB-FUNCTIONS
 # Replace nans and duplicates in cross_distance
 def format_cd(cd,output):
@@ -196,12 +199,16 @@ def predict_SARIMAX(n_steps_further,cross_distance_pred,dates,seasonality):
     df_ts = pd.DataFrame(cross_distance_pred)
     auto_arima_model = auto_arima(y=df_ts,
                               seasonal=True,
-                              m=seasonality, #seasonality
+                              m=seasonality,
                               information_criterion="aic",
                               trace=True)
 
-    SARIMAXmodel = SARIMAX(endog=df_ts,order=auto_arima_model.order,seasonal_order=auto_arima_model.seasonal_order, trend='t').fit()
-    
+    try:
+        SARIMAXmodel = SARIMAX(endog=df_ts,order=auto_arima_model.order,seasonal_order=auto_arima_model.seasonal_order, trend='t').fit()
+    except np.linalg.LinAlgError as err:
+        # if type(err) == <class 'numpy.linalg.LinAlgError'>:
+            return None
+            
     df_ts.index = pd.to_datetime(dates, format='%d-%m-%Y %H:%M')
     y_pred = SARIMAXmodel.get_forecast(n_steps_further)
     y_pred_df = y_pred.conf_int(alpha = 0.05) 
@@ -226,10 +233,8 @@ def validate_year(n_years_further, output):
 
 # get the results of the prediction using various models
 def predict(cross_distance,output,inputs,settings,n_steps_further,validity, model='ARIMA',param=None,smooth_data=False,smooth_coef=5,tuning=True,seasonality=2,plot=True):
-    if validity is True:
-        pass
-    else: 
-        return print('Invalid number of years.'), None
+    if validity is False:
+        raise Exception("Invalid number of years.")
     
     cd = cross_distance.copy()
 
@@ -283,7 +288,11 @@ def predict(cross_distance,output,inputs,settings,n_steps_further,validity, mode
             cross_distance_pred=np.concatenate((cross_distance_pred,predict_ARIMA(n_steps_further,cross_distance_pred,dates)))
         ################# SARIMAX LINEAR TREND MODEL ########################
         if model == 'SARIMAX':
-            cross_distance_pred=np.concatenate((cross_distance_pred,predict_SARIMAX(n_steps_further,cross_distance_pred,dates,seasonality))) 
+            error = predict_SARIMAX(n_steps_further,cross_distance_pred,dates,seasonality)
+            if type(error) == type(None):
+                return None, None
+            else:
+                cross_distance_pred=np.concatenate((cross_distance_pred,predict_SARIMAX(n_steps_further,cross_distance_pred,dates,seasonality))) 
           
         time_series_pred[i]=np.array(cross_distance_pred)
         
@@ -324,14 +333,12 @@ def predict(cross_distance,output,inputs,settings,n_steps_further,validity, mode
 # %% MODEL VALIDATION
 
 def model_evaluation(cross_distance,  n_steps_further, metadata, output, settings, validity, model='Holt', smooth_data=True, smooth_coef=0, best_param=False, seasonality= 2,  MNDWI=False):
-    if validity is True:
-        pass
-    else: 
-        return print('Invalid number of years.'), None, None
+    if validity is False:
+        raise Exception("Invalid number of years.")
 
     n_months_further = n_steps_further * 12
     param_sc = np.linspace(0,40,21)
-    season_sc = np.arange(2,5)
+    season_sc = np.arange(2,13)
     params = dict([])
     params_temp = dict([])
     rmse_all = dict([])
@@ -405,13 +412,18 @@ def model_evaluation(cross_distance,  n_steps_further, metadata, output, setting
                            
                 error = predict_estimate_validate(cross_distance, n_months_further,transect,output,smooth_data=False,smooth_coef=1,model=model,params=None,tuned_parameters=None, lags=None, seasonality= season_sc[i],transformation=None)
                 
-                rmse_all_temp[transect + ' average per year'] = error[0]
-                rmse_all_temp[transect] = error[2]
-                mae_all_temp[transect + ' average per year'] = error[1]
-                mae_all_temp[transect] = error[3]
+                if error == None:
+                    break
+                else:
+                    rmse_all_temp[transect + ' average per year'] = error[0]
+                    rmse_all_temp[transect] = error[2]
+                    mae_all_temp[transect + ' average per year'] = error[1]
+                    mae_all_temp[transect] = error[3]
 
             rmse_list = list(rmse_all_temp.values())[1::2] # all RMSE values
-            if min_error > np.mean(rmse_list):
+            if error == None:
+                continue
+            elif min_error > np.mean(rmse_list):
                 min_error = np.mean(rmse_list)
 
                 params = season_sc[i]
@@ -486,14 +498,13 @@ def predict_estimate_validate(cross_distance, n_months_further,transect,output,s
 
     ################# HOLT'S LINEAR TREND MODEL ########################
     if model == 'Holt':
-        # cross_distance_pred2 = predict_Holt_Trend(n_steps_further,X_train,dates[:-SPLIT],output)
         cross_distance_pred2 = predict_Holt_Trend(n_steps_further,X_train,dates[:-SPLIT],output)
     ################# SARIMAX LINEAR TREND MODEL ########################
     if model == 'SARIMAX':
         cross_distance_pred2 = predict_SARIMAX(n_steps_further,X_train,dates[:-SPLIT],seasonality)
-    ################### AUTOREGRESSIVE MODEL ###########################
-    if model == 'AR':
-        cross_distance_pred2 = predict_AR(n_steps_further,X_train,dates[:-SPLIT],lags,transformation=None)
+        if type(cross_distance_pred2) == type(None):
+            return None
+
     ######################## ARIMA MODEL ##############################
     if model == 'ARIMA':
         cross_distance_pred2 = predict_ARIMA(n_steps_further,X_train,dates[:-SPLIT])
