@@ -241,19 +241,74 @@ An example is shown in the animation below:
 
 ![transects](https://user-images.githubusercontent.com/7217258/49990925-8b985a00-ffd3-11e8-8c54-57e4bf8082dd.gif)
 
-### 2.4 Tidal Correction
+### 2.4 Tidal correction <a class="anchor" id="section_2_4"></a>
 
 Each satellite image is captured at a different stage of the tide, therefore a tidal correction is necessary to remove the apparent shoreline changes cause by tidal fluctuations.
 
+`cross_distance = correct_tides.correct_tides(cross_distance,settings,output,reference_elevation,beach_slope)`
+
 In order to tidally-correct the time-series of shoreline change you will need the following data:
-- Time-series of water/tide level: this can be formatted as a .csv file, an example is provided [here](https://github.com/kvos/CoastSat/blob/master/examples/NARRA_tides.csv). Make sure that the dates are in UTC time as the CoastSat shorelines are always in UTC time. Also the vertical datum needs to be approx. Mean Sea Level.
 
-- An estimate of the beach-face slope along each transect. If you don't have this data you can obtain it using [CoastSat.slope](https://github.com/kvos/CoastSat.slope), see [Vos et al. 2020](https://doi.org/10.1029/2020GL088365) for more details (preprint available [here](https://www.essoar.org/doi/10.1002/essoar.10502903.2)).
+* Time-series of water/tide level: this can be formatted as a .csv file, an example is provided [here](https://github.com/GIS-UNDP/coastline-change-prediction-tool/blob/main/data/GHANA/GHANA_tides.csv). Make sure that the dates are in UTC time as the shorelines are always in UTC time. Also the vertical datum needs to be approx. Mean Sea Level (MSL). If those tide values are in Mean Lower Low Water (MLLW), you will need to get the constant value of this datum at your station. 
 
-Wave setup and runup corrections are not included in the toolbox, but for more information on these additional corrections see [Castelle et al. 2021](https://doi.org/10.1016/j.geomorph.2021.107707).
+`reference_elevation = 0` if tides are in MSL or `reference_elevation = MLLW value` otherwise.
 
 
-### 2.5 Time series forecasting <a class="anchor" id="section_2_5"></a>
+* An estimate of the beach-face slope along each transect. If you don't have this data you can estimate it either using CoastSat.slope, see Vos et al. 2020 for more details (preprint available [here](https://www.essoar.org/doi/10.1002/essoar.10502903.1)) or using a global worldwide dataset of nearshore slopes estimates with a resolution of 1 km made by Athanasiou et al. 2019, see [their artice](https://essd.copernicus.org/articles/11/1515/2019/) for more details.
+
+If you already have a beach slope estimate:
+
+`beach_slope = 0.1
+cross_distance = correct_tides.correct_tides(cross_distance,settings,output,reference_elevation,beach_slope)`
+
+If you want to estimate the beach slope using  CoastSat.slope:
+
+`cross_distance = correct_tides.correct_tides(cross_distance,settings,output,reference_elevation,estimate_slope=True)`
+
+If you want to use the estimation made by Athanasiou et al. 2019:
+
+`cross_distance = correct_tides.correct_tides(cross_distance,settings,output,reference_elevation)`
+
+**Note**: if you don't have measured water levels, it is possible to obtain an estimate of the  time-series of modelled tide levels at the time of image acquisition from the [FES2014](https://www.aviso.altimetry.fr/es/data/products/auxiliary-products/global-tide-fes/description-fes2014.html) global tide model. Instructions on how to install the global tide model are available [here](https://github.com/kvos/CoastSat.slope/blob/master/doc/FES2014_installation.md).
+
+The function `correct_tides` returns the tidally-corrected time-series of shoreline change and we call `reconstruct_shoreline` to recover the corrected shorelines and save them as shapefiles.
+
+You will find several websites from where you can get tides prediction or covering the last months. In order to properly correct our shorelines, we need to have tide tables covering not only the last months but also the last years. There are several websites for this purpose but we only found one that can provide tides for long periods rather quickly. The steps to take are detailed below.  
+
+**Extract the tides from the National Oceanic and Atmospheric Administration (NOAA)**
+
+On the [NOAA website](https://tidesandcurrents.noaa.gov/tide_predictions.html), you will find tides tables for the USA, Carribean islands and some Pacific islands but not all of them.
+You can get the tides annually from 2019 to 2021 or monthly for the years before 2019. If you have a lot of years to retrieve from the website, the fastest way to do it is to modify the downloading link below :
+```
+https://tidesandcurrents.noaa.gov/cgi-bin/predictiondownload.cgi?&stnid=STATION_ID&threshold=&thresholdDirection=&bdate=START_DATE&edate=END_DATE&units=metric&timezone=GMT&datum=MLLW&interval=hilo&clock=24hour&type=txt&annual=true
+```
+In this link, change the following :
+* STATION_ID : You can find it in the name if the station you want to extract tides from (example : stnid=TEC4723 for Santo Domingo or stnid=TPT2707 for Taongi Atoll).
+* START_DATE and END_DATE : You can only extract the years one by one, so you must change START_DATE and END_DATE by January 1st and December 31st with this format : yyyymmdd. For example, bdate=20010101 and edate=20011231 if you want to extract all the tides for the year 2001.  
+
+Repeat this operation for every year you want to cover and paste the tides in a blank Excel file by using *Paste Special > Text*. Use the following formula in J1 and then [expand it](https://support.microsoft.com/en-us/office/copy-a-formula-by-dragging-the-fill-handle-in-excel-for-mac-dd928259-622b-473f-9a33-83aa1a63e218) to select only the valuable information from the tides tab :
+```
+=TEXT(A1;"yyyy-mm-dd") & " " & TEXT(C1;"hh:mm") & "," & SUBSTITUTE(F1/100;",";".")
+```
+Once you have expanded your formula, copy and paste your column in a new Excel file using the *Values* option when pasting. Then, save your file as .csv.
+
+As the tide values retrieved on the NOAA website will be in Mean Lower Low Water (MLLW), you need to get the value of this datum at this station. For that, find your sation [here](https://tidesandcurrents.noaa.gov/stations.html?type=Datums) and read the value of the MLLW in the chart.
+
+### 2.5 Computation of the prediction's generalization error <a class="anchor" id="section_2_5"></a>
+
+You need to set up the `n_years_further` parameter to define the number of years for which the prediction will be performed.
+The function `model_evaluation` computes the **generalization error** of the prediction by splitting the images into train and test samples and comparing the predicted shorelines with actual shorelines. It also computes the parameters that minimize the rmse and stores them in a `.pkl` so that the `predict` function reads the file and uses these parameters if it exists. This module delivers error metrics for each predicted year and best-estimated parameters for `Holt` and `SARIMAX` models. This gives an overvirew of model performances. It is still recommended to run the forecast for all three models and to consider both: error metrics and visual output. Model information can be found in section 2.6. Before starting the `model_evaluation` function, the `validate_year` function will check if the time series is long enough to provide the prediction for the inserted time period.
+
+# define the number of years to be predicted
+n_years_further = 2
+
+message, validity = pt.validate_year(n_years_further, output)
+
+# model could be: Holt, ARIMA or SARIMAX
+model = 'SARIMAX'
+best_param, rmse, mae = pt.model_evaluation(cross_distance, n_years_further, metadata, output, settings, validity, model=model, smooth_data=False, smooth_coef=1, best_param=True, seasonality=1, MNDWI=False)
+
+### 2.6 Time series forecasting <a class="anchor" id="section_2_6"></a>
 
 Several models are implemented to predict the evolution of the time series for each transect. Beforehand, interpolation was carried out in order to make the intervals between the different steps regular. 
 
@@ -283,60 +338,61 @@ The characteristics of Holt's linear trend method are mentioned below:
 2. It is based to use for short term forecasting as it is based on the assumption that future trend will follow the current trend. This means that we will have to predict much less steps than we use to make the prediction. The longer you want to make a prediction, the older data you will need.
 3. It does not provide good result in case of small data. In our case, if the first images are only three-four years old, the prediction will be rather bad. A range of images over at least seven years is more reasonable.
 
-
-* an **AutoRegressive** model `'AR'`
-* a **Long Short Term Memory** model `'LSTM'`
 * an **AutoRegressive Integrated Moving Average model** `'ARIMA'`
 
-*Note: At this time, the Holt model is recommended as the other three are still under development.* 
+ARIMA is a class of models that explains a given time series based on its own past values, that is, its own lags and the lagged forecast errors, so that equation can be used to forecast future values. 
 
-You also need to set up the `n_months_further` parameter to define the number of months for which the prediction will be performed.
+An ARIMA model is characterized by 3 terms: p, d, q
+
+where,
+
+p is the order of the AR term
+
+q is the order of the MA term
+
+d is the number of differencing required to make the time series stationary.
+
+Potential pros of using ARIMA models:
+- Only requires the prior data of a time series to generalize the forecast.
+- Performs well on short term forecasts.
+- Models non-stationary time series.
+
+
+Potential cons of using ARIMA models:
+- Difficult to predict turning points.
+- There is quite a bit of subjectivity involved in determining (p,d,q) order of the model.
+- Computationally expensive.
+- Poorer performance for long term forecasts.
+- Cannot be used for seasonal time series.
+
+Any ‘non-seasonal’ time series that exhibits patterns and is not a random white noise can be modeled with ARIMA models.
+
+* an **Seasonal Auto-Regressive Integrated Moving Average with eXogenous factors** `'SARIMAX'`
+
+If your time series has defined seasonality, SARIMAX is a good model choice since it uses seasonal differencing.
+
+Seasonal differencing is similar to regular differencing, but, instead of subtracting consecutive terms, you subtract the value from previous season.
+
+So, the model will be represented as SARIMA(p,d,q)x(P,D,Q), where, P, D and Q are SAR, order of seasonal differencing and SMA terms respectively and 'x' is the frequency of the time series.
+
+The SARIMAX model sometimes delivers LinAlgError. This is avoided using the exception, however, it is recommended to investigate this issue for the next version of the tool.
 
 The function `predict` returns the time-series along each transect with the prediction for the `n_months_further` months added and a dates vector with the predicted dates added.
 
 Some other parameters of the predict function can be specified:
 
 * `smooth_data` (default to *True*): if set to True the training data is smoothed. This allows to erase recent outliers and at the same time to move back the period on which the learning is focused.
-* `smooth_coef` (default to *5*): smoothing strength. The higher the value, the smoother the data.
+* `smooth_coef` (default to *1*): smoothing strength. The higher the value, the smoother the data.
+* `seasonality` (default to *1*): number of periods in season.
 * `plot`: if set to True, the time series predictions will be plotted.
 
+time_series_pred, dates_pred_m = pt.predict(cross_distance,output,inputs,settings,n_years_further,validity,model=model,param=None,smooth_data=True,smooth_coef=1,seasonality=1,plot=True)
 
-```python
-n_months_further=24
-time_series_pred, dates_pred_m = predict.predict(cross_distance,output,inputs,n_months_further,model='Holt',smooth_data=True,smooth_coef=5,plot=True)
-```
-
-### 2.6 New shoreline reconstruction <a class="anchor" id="section_2_6"></a>
+### 2.7 New shoreline reconstruction <a class="anchor" id="section_2_7"></a>
 
 The function `reconstruct_shoreline` reconstructs the predicted shorelines. It keeps one shoreline per year predicted. These new shorelines will be plotted and saved as geojson and shapefiles.
 
-
-```python
-predicted_sl = reconstruct_shoreline.reconstruct_shoreline(time_series_pred,transects,dates_pred_m,output,inputs,settings,n_months_further)
-```
-
-### 2.7 Computation of the prediction's generalization error <a class="anchor" id="section_2_7"></a>
-
-The function `cross_validation` computes the **generalization error** of the prediction by splitting the images in train and test samples and comparing the predicted shorelines with hand-drawn shorelines. It also computes the parameters that minimize the rmse and stores them in a `.pkl` so that the `predict` function reads the file and uses these parameters if it exists.
-
-As with the reference shoreline, you will be asked to draw manually the different shorelines that will serve as a reference for the error calculation. 
-
-
-```python
-best_param, rmse, mae = pt.cross_validation(cross_distance,metadata,output,settings,model='Holt')
-```
-
-### 2.8 Threatened population estimation <a class="anchor" id="section_2_8"></a>
-
-Using the population density, it is possible to calculate the area lost between the current coastline and the predicted one in order to estimate the number of people at threat. This estimate is given by the function `estimate_pop`.
-
-The `areas` output contains a low, median and high estimate of the surface that is predicted to be lost. 
-If the `density` parameter is specified, the function also returns the equivalents in terms of population and that is stored in `pop` here.
-
-
-```python
-areas, pop = ep.estimate_pop(cross_distance,predicted_sl,time_series_pred,dates_pred_m,n_months_further,transects,output,inputs,settings,density=7600,plot=True)
-```
+predicted_sl = rs.reconstruct_shoreline(time_series_pred,transects,dates_pred_m,output,inputs,settings,n_years_further)
 
 ## Issues
 
