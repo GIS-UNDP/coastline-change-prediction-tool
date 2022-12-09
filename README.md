@@ -307,10 +307,11 @@ n_years_further = 2
 
 message, validity = pt.validate_year(n_years_further, output)`
 
-`# model could be: Holt, ARIMA or SARIMAX
+```
+# model could be: Holt, ARIMA or SARIMAX
 model = 'SARIMAX'
 best_param, rmse, mae = pt.model_evaluation(cross_distance, n_years_further, metadata, output, settings, validity, model=model, smooth_data=False, smooth_coef=1, best_param=True, seasonality=1, MNDWI=False)
-`
+```
 
 ### 2.6 Time series forecasting <a class="anchor" id="section_2_6"></a>
 
@@ -390,13 +391,16 @@ Some other parameters of the predict function can be specified:
 * `seasonality` (default to *1*): number of periods in season.
 * `plot`: if set to True, the time series predictions will be plotted.
 
-`time_series_pred, dates_pred_m = pt.predict(cross_distance,output,inputs,settings,n_years_further,validity,model=model,param=None,smooth_data=True,smooth_coef=1,seasonality=1,plot=True)
-`
+```
+time_series_pred, dates_pred_m = pt.predict(cross_distance,output,inputs,settings,n_years_further,validity,model=model,param=None,smooth_data=True,smooth_coef=1,seasonality=1,plot=True)
+```
 ### 2.7 New shoreline reconstruction <a class="anchor" id="section_2_7"></a>
 
 The function `reconstruct_shoreline` reconstructs the predicted shorelines. It keeps one shoreline per year predicted. These new shorelines will be plotted and saved as geojson and shapefiles.
 
-`predicted_sl = rs.reconstruct_shoreline(time_series_pred,transects,dates_pred_m,output,inputs,settings,n_years_further)`
+```
+predicted_sl = rs.reconstruct_shoreline(time_series_pred,transects,dates_pred_m,output,inputs,settings,n_years_further)
+```
 
 ## Issues
 
@@ -419,10 +423,6 @@ Saha, Amit & Sinha, Kanchan. (2020). Usage of Holt's Linear Trend Exponential Sm
 
 Athanasiou, P., van Dongeren, A., Giardino, A., Vousdoukas, M., Gaytan-Aguilar, S., and Ranasinghe, R.: Global distribution of nearshore slopes with implications for coastal retreat, Earth Syst. Sci. Data, 11, 1515–1529, https://doi.org/10.5194/essd-11-1515-2019, 2019
 
-
-```python
-
-```
 
 
 ## Issues
