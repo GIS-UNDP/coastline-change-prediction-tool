@@ -302,12 +302,12 @@ As the tide values retrieved on the NOAA website will be in Mean Lower Low Water
 You need to set up the `n_years_further` parameter to define the number of years for which the prediction will be performed.
 The function `model_evaluation` computes the **generalization error** of the prediction by splitting the images into train and test samples and comparing the predicted shorelines with actual shorelines. It also computes the parameters that minimize the rmse and stores them in a `.pkl` so that the `predict` function reads the file and uses these parameters if it exists. This module delivers error metrics for each predicted year and best-estimated parameters for `Holt` and `SARIMAX` models. This gives an overvirew of model performances. It is still recommended to run the forecast for all three models and to consider both: error metrics and visual output. Model information can be found in section 2.6. Before starting the `model_evaluation` function, the `validate_year` function will check if the time series is long enough to provide the prediction for the inserted time period.
 
-`# define the number of years to be predicted
+```
+# define the number of years to be predicted
 n_years_further = 2
 
 message, validity = pt.validate_year(n_years_further, output)`
 
-```
 # model could be: Holt, ARIMA or SARIMAX
 model = 'SARIMAX'
 best_param, rmse, mae = pt.model_evaluation(cross_distance, n_years_further, metadata, output, settings, validity, model=model, smooth_data=False, smooth_coef=1, best_param=True, seasonality=1, MNDWI=False)
