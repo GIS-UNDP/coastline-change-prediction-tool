@@ -60,12 +60,12 @@ Create a new environment named `coastsat` with all the required packages by ente
 ```
 conda create -n coastsat python=3.8
 conda activate coastsat
-conda install -c conda-forge earthengine-api
+conda install spyder notebook
 conda install gdal geopandas
 conda install scikit-image
-conda install -c conda-forge astropy
-conda install spyder notebook
 
+conda install -c conda-forge earthengine-api
+conda install -c conda-forge astropy
 conda install -c conda-forge opt_einsum
 conda install -c conda-forge gast
 conda install -c conda-forge statsmodels 
@@ -73,6 +73,9 @@ conda install -c conda-forge astunparse
 conda install -c conda-forge termcolor
 conda install -c conda-forge flatbuffers
 conda install -c conda-forge python-flatbuffers
+conda install -c conda-forge tensorflow keras
+
+pip install pmdarima
 
 ```
 
@@ -101,7 +104,7 @@ Once your request has been approved, with the `coastsat` environment activated, 
 earthengine authenticate
 ```
 
-A web browser will open, login with a gmail account and accept the terms and conditions. Then copy the authorization code into the Anaconda terminal.
+A web browser will open, login with a gmail account and accept the terms and conditions. Then copy the authorization code into the Anaconda terminal. If this steps is not working you need to install Google cloud. Find installation instructions here: https://cloud.google.com/sdk/docs/install. 
 
 Now you are ready to start using the CoastSat toolbox!
 
@@ -299,14 +302,15 @@ As the tide values retrieved on the NOAA website will be in Mean Lower Low Water
 You need to set up the `n_years_further` parameter to define the number of years for which the prediction will be performed.
 The function `model_evaluation` computes the **generalization error** of the prediction by splitting the images into train and test samples and comparing the predicted shorelines with actual shorelines. It also computes the parameters that minimize the rmse and stores them in a `.pkl` so that the `predict` function reads the file and uses these parameters if it exists. This module delivers error metrics for each predicted year and best-estimated parameters for `Holt` and `SARIMAX` models. This gives an overvirew of model performances. It is still recommended to run the forecast for all three models and to consider both: error metrics and visual output. Model information can be found in section 2.6. Before starting the `model_evaluation` function, the `validate_year` function will check if the time series is long enough to provide the prediction for the inserted time period.
 
-# define the number of years to be predicted
+`# define the number of years to be predicted
 n_years_further = 2
 
-message, validity = pt.validate_year(n_years_further, output)
+message, validity = pt.validate_year(n_years_further, output)`
 
-# model could be: Holt, ARIMA or SARIMAX
+`# model could be: Holt, ARIMA or SARIMAX
 model = 'SARIMAX'
 best_param, rmse, mae = pt.model_evaluation(cross_distance, n_years_further, metadata, output, settings, validity, model=model, smooth_data=False, smooth_coef=1, best_param=True, seasonality=1, MNDWI=False)
+`
 
 ### 2.6 Time series forecasting <a class="anchor" id="section_2_6"></a>
 
@@ -377,7 +381,7 @@ So, the model will be represented as SARIMA(p,d,q)x(P,D,Q), where, P, D and Q ar
 
 The SARIMAX model sometimes delivers LinAlgError. This is avoided using the exception, however, it is recommended to investigate this issue for the next version of the tool.
 
-The function `predict` returns the time-series along each transect with the prediction for the `n_months_further` months added and a dates vector with the predicted dates added.
+The function `predict` returns the time-series along each transect with the prediction for the `n_years_further` years added and a dates vector with the predicted dates added.
 
 Some other parameters of the predict function can be specified:
 
@@ -386,13 +390,13 @@ Some other parameters of the predict function can be specified:
 * `seasonality` (default to *1*): number of periods in season.
 * `plot`: if set to True, the time series predictions will be plotted.
 
-time_series_pred, dates_pred_m = pt.predict(cross_distance,output,inputs,settings,n_years_further,validity,model=model,param=None,smooth_data=True,smooth_coef=1,seasonality=1,plot=True)
-
+`time_series_pred, dates_pred_m = pt.predict(cross_distance,output,inputs,settings,n_years_further,validity,model=model,param=None,smooth_data=True,smooth_coef=1,seasonality=1,plot=True)
+`
 ### 2.7 New shoreline reconstruction <a class="anchor" id="section_2_7"></a>
 
 The function `reconstruct_shoreline` reconstructs the predicted shorelines. It keeps one shoreline per year predicted. These new shorelines will be plotted and saved as geojson and shapefiles.
 
-predicted_sl = rs.reconstruct_shoreline(time_series_pred,transects,dates_pred_m,output,inputs,settings,n_years_further)
+`predicted_sl = rs.reconstruct_shoreline(time_series_pred,transects,dates_pred_m,output,inputs,settings,n_years_further)`
 
 ## Issues
 

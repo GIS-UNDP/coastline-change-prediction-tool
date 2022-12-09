@@ -37,13 +37,13 @@ polygon = [[[0.9840004042206285,5.868659802766709], #'Ghana'
 # it's recommended to convert the polygon to the smallest rectangle (sides parallel to coordinate axes)       
 polygon = SDS_tools.smallest_rectangle(polygon)
 # date range
-dates = ['2000-01-01', '2021-01-01']
+dates = ['2015-01-01', '2021-01-01']
 
 # # name of the site
 sitename = 'GHANA'
 
 # satellite missions
-sat_list = ['S2','L5','L7','L8','L9']
+sat_list = ['S2','L5','L7','L8']
 
 # directory where the data will be stored
 filepath = os.path.join(os.getcwd(), 'data')
