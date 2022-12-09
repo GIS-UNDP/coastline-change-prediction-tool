@@ -36,8 +36,7 @@ from pylab import ginput
 # CoastSat modules
 from coastsat import SDS_tools, SDS_preprocess
 
-os.environ['PROJ_LIB'] = 'C:\\Users\\Ivana\\miniconda3\\envs\\coastenv\\Library\\share\\proj'
-os.environ['GDAL_DATA'] = 'C:\\Users\\Ivana\\miniconda3\\envs\\coastenv\\Library\\share'
+
 
 np.seterr(all='ignore') # raise/ignore divisions by 0 and nans
 

@@ -30,7 +30,7 @@ from coastsat import SDS_tools
 
 import pyproj
 
-pyproj.datadir.set_data_dir('C:\\Users\\Ivana\\miniconda3\\envs\\coastenv\\Library\\share\\proj')
+
 
 np.seterr(all='ignore') # raise/ignore divisions by 0 and nans
 
